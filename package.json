@@ -18,7 +18,7 @@
   ],
   "dependencies": {
     "esm": "^3.2.25",
-    "graphql": "^14.7.0",
+    "graphql": "^15.0.0",
     "graphql-subscriptions": "^1.2.1",
     "graphql-subscriptions-client": "^0.16.2",
     "graphql-yoga": "^2.13.13",
