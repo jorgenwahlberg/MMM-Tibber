@@ -48,7 +48,10 @@ const gaugeOptions = function(config) {
           y: 25,
           borderWidth: 0,
           useHTML: true,
-          style: { color: "#777" }
+          style: { 
+            color: "#777",
+            fontSize: config.gaugesLabelFontSize 
+          }
         }
       }
     }

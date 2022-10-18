@@ -74,7 +74,8 @@ function drawGraphs(moduleId, tibber, config, sumAdditionalCosts, savingsData) {
       type: "datetime",
       labels: {
         style: {
-          color: config.xAxisLabelColor
+          color: config.xAxisLabelColor,
+          fontSize: config.graphLabelFontSize 
         }
       },
       lineColor: config.xAxisLineColor
