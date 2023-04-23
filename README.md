@@ -14,8 +14,6 @@ Standard screen:
 
 ![Screenshot](doc/MMM-Tibber-screenshot-main.png)
 
-
-
 Gauges 3-phase:
 
 ![Screenshot](doc/MMM-Tibber-screenshot-3phase.png)
@@ -23,7 +21,6 @@ Gauges 3-phase:
 Graph with savings marked (the purple lines):
 
 ![Screenshot](doc/MMM-Tibber-screenshot-savings-graph.png)
-
 
 Vertical Gauges:
 
@@ -37,6 +34,10 @@ Go to your `MagicMirror/modules` folder and write
     cd MMM-Tibber
     npm install
 
+## Migrate from v2 to v3
+
+In version 3 you need to configure the Tibber homeId. The old config homeNumber is no longer used.
+
 ## Configuration
 
 Here is an example configuration. Put it in the `MagicMirror/config/config.js` file:
@@ -47,13 +48,14 @@ Here is an example configuration. Put it in the `MagicMirror/config/config.js` f
     position: 'bottom_center',
     config: {
         tibberToken: '<find your token from tibber.com>'
+        homeId: '<see below how to find your home id>'
     }
 },
 ```
 
 Of course, you need a [Tibber](https://tibber.com/) account to use this module. Your access token (`tibberToken`) can be found in the [developer pages](https://developer.tibber.com/settings/accesstoken).
 
-If you have more than one Tibber subscription (for example several houses), you must use the houseNumber config variable to set correct house number. You can turn on logging (`logging: true`) and watch the output from the node_helper in the terminal window to check the address of the configured house.
+Your homeId can be found by running `node get-homes.js <tibberToken>`, or you can find it using the API explorer, following the link above. If you use the script (`get-homes.js`), pick the `id` from the correct home in the result data.
 
 The above is the minimum configuration required. Below is the complete module configuration you can use, with default values.
 
@@ -64,9 +66,10 @@ NB! Do NOT copy the whole config below. This is the config reference showing wha
 config: {
   // General
   tibberToken: "log in to tibber to find your token",
-  houseNumber: 0, // If you have more than one Tibber subscription
+  homeId: '<see above how to find your home id>',
   logging: false, // Turn on to see more details, but keep normally off
   is3phase: false, // Set to true to force 3-phase
+  updateInterval: 5, // Tibber query update interval in minutes
   // Chart
   historyHours: 24, // How long history for price and consumption to see in the graph
   futureHours: 48, // How long into the future to see price data
@@ -200,7 +203,7 @@ The `futureHours` max value is 48, but it cannot show more than the whole next d
 
 ### Multiple module instances
 
-You can configure multiple instances of the module to show different parts on different places of the screen. The Tibber token and the house number must be the same for all modules. Logging should also be the same, or if not, the logging from the node_modules.js file is random on or off.
+You can configure multiple instances of the module to show different parts on different places of the screen. The Tibber token and the homeId must be the same for all modules. Logging should also be the same, or if not, the logging from the node_modules.js file is random on or off.
 
 Use the showXXX variables to hide different parts of the module. For example, you can show the price and consumption chart in a wide area of the screen, and show the gauges for power, voltage and current vertically in a narrow part of the screen. The text table also looks best vertically.
 
@@ -229,7 +232,7 @@ You can hide each part by setting the config variable to `false`.
 
 Normally the electricity cost received from Tibber is only a fraction of the total electricity cost. You can add additional costs to show real costs. Example:
 
-```
+```javascript
     additionalCostPerKWH: [
       {
         label: "Nettleie",
@@ -258,14 +261,14 @@ Use the [`PowerSaver`](https://github.com/ottopaulsen/node-red-contrib-power-sav
 
 Then use the [MMM-MQTT](https://github.com/ottopaulsen/MMM-MQTT) module to receive this topic, and broadcast it, on the same MM as you are running MMM-Tibber. Use the following config for MMM-MQTT:
 
-```json
+```javascript
 subscriptions: [
   {
-    "topic": "powersaver/plan",
-    "hidden": true,
-    "broadcast": true
-  },
-]
+    topic: "powersaver/plan",
+    hidden: true,
+    broadcast: true
+  }
+];
 ```
 
 At last turn on the savings graph by setting `showSavings: true,` in the MMM-Tibber config.
@@ -322,7 +325,7 @@ Set `gaugesVertical` to true if you want to show tha gauges vertically. In this 
 
 ## Translations
 
-There are a few words that need translations, and I have provided translations for English (default), Norwegian and Swedish. You must set the `language` config variable for MagicMirror (not the module) to either `no` or `se` to get the right language.
+There are a few words that need translations, and I have provided translations for English (default), Norwegian and Swedish. You must set the `language` config variable for MagicMirror (not the module) to either `nb` or `sv` to get the right language.
 
 ## Troubleshooting
 

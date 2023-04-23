@@ -1,11 +1,14 @@
 "use strict";
 
 const NodeHelper = require("node_helper");
-const tibber = require("./tibber");
 const consumptions = require("./consumptions");
 
+const tibber = require("./tibber");
+
+let tibberApi;
+
 module.exports = NodeHelper.create({
-  start: function () {
+  start: async function () {
     console.log(this.name + ": Starting node helper");
     this.loaded = false;
   },
@@ -16,7 +19,7 @@ module.exports = NodeHelper.create({
     }
   },
 
-  socketNotificationReceived: function (notification, payload) {
+  socketNotificationReceived: async function (notification, payload) {
     if (notification === "TIBBER_CONFIG") {
       if (this.loaded) {
         if (payload.tibberToken != this.config.tibberToken) {
@@ -34,14 +37,31 @@ module.exports = NodeHelper.create({
         console.log(this.name + ": Configuring");
         var config = payload;
         this.config = config;
+        if (!config.homeId) {
+          console.error(this.name + ": You must configure homeId");
+          console.log(
+            this.name +
+              ": You can run 'node get-homes.js <token>' in the module folder, or go to https://developer.tibber.com/ to find your homeId"
+          );
+          return;
+        }
         this.loaded = true;
+        console.log(
+          this.name +
+            ": Tibber update interval: " +
+            config.updateInterval +
+            " minutes"
+        );
         const sub = this.receiveTibberSubscriptionData.bind(this);
-        tibber.subscribe(config.tibberToken, config.houseNumber, sub);
+
+        tibberApi = await tibber(this.config.tibberToken);
+
+        tibberApi.subscribe(config.homeId, sub);
 
         this.handleTibber(config);
         setInterval(() => {
           this.handleTibber(config);
-        }, 1000 * 60 * 1); // Every 5 minutes
+        }, 1000 * 60 * config.updateInterval);
       }
     }
   },
@@ -61,12 +81,8 @@ module.exports = NodeHelper.create({
       });
   },
 
-  readTibberData: function (config) {
-    return tibber.getTibber(
-      config.tibberToken,
-      config.houseNumber,
-      config.historyHours
-    );
+  readTibberData: async function (config) {
+    return await tibberApi.perHour(config.homeId, config.historyHours);
   },
 
   sendChartData: function (consumptions, tibber) {
@@ -80,21 +96,24 @@ module.exports = NodeHelper.create({
       consumption: [],
       prices: {
         current: null,
-        twoDays: [],
-      },
+        twoDays: []
+      }
     };
-    tibberData.prices.current = tibber.currentSubscription.priceInfo.current;
-    tibberData.prices.twoDays = tibber.currentSubscription.priceInfo.today.concat(
-      tibber.currentSubscription.priceInfo.tomorrow
+    tibberData.prices.current =
+      tibber.home.currentSubscription.priceInfo.current;
+    tibberData.prices.twoDays = tibber.home.currentSubscription.priceInfo.today.concat(
+      tibber.home.currentSubscription.priceInfo.tomorrow
     );
-    if (tibber.consumption) {
-      tibberData.totalConsumption = tibber.consumption.nodes.filter((n) => {
-        return n.consumption != null;
-      });
+    if (tibber.home.consumption) {
+      tibberData.totalConsumption = tibber.home.consumption.nodes.filter(
+        (n) => {
+          return n.consumption != null;
+        }
+      );
     }
 
     if (consumptions) {
-      if (tibber.consumption) {
+      if (tibber.home.consumption) {
         consumptions.unshift(
           this.makeRemainingConsumption(
             tibberData.totalConsumption,
@@ -117,9 +136,9 @@ module.exports = NodeHelper.create({
         return {
           from: new Date(v.from),
           consumption: v.consumption,
-          consumptionUnit: v.consumptionUnit,
+          consumptionUnit: v.consumptionUnit
         };
-      }),
+      })
     };
     // console.log("convertedTotal = ", JSON.stringify(convertedTotal, null, 2));
 
@@ -133,9 +152,9 @@ module.exports = NodeHelper.create({
             return {
               from: new Date(d.from),
               consumption: d.consumption,
-              consumptionUnit: d.consumptionUnit,
+              consumptionUnit: d.consumptionUnit
             };
-          }),
+          })
         };
       });
     // console.log("convertedParts = ", JSON.stringify(convertedParts, null, 2));
@@ -163,31 +182,24 @@ module.exports = NodeHelper.create({
         return {
           from: v.from,
           consumption: v.consumption - sumParts(convertedParts, v.from),
-          consumptionUnit: v.consumptionUnit,
+          consumptionUnit: v.consumptionUnit
         };
-      }),
+      })
     };
 
     // console.log("Remaining: ", remaining);
     return remaining;
   },
 
-  receiveTibberSubscriptionData: function (data) {
-    const subData = JSON.parse(data);
-    if (subData.type == "data") {
-      this.sendSocketNotification(
-        "TIBBER_SUBSCRIPTION_DATA",
-        subData.payload.data.liveMeasurement
-      );
-      this.log(
-        "Tibber subscription data:",
-        JSON.stringify(subData.payload.data.liveMeasurement, null, 2)
-      );
-    }
+  receiveTibberSubscriptionData: function (subData) {
+    // if (subData.type == "data") {
+    this.sendSocketNotification("TIBBER_SUBSCRIPTION_DATA", subData);
+    this.log("Tibber subscription data:", JSON.stringify(subData, null, 2));
+    // }
   },
 
   stop: function () {
-    tibber.close();
+    tibberApi.close();
   },
 
   readConsumptions: function (config) {
@@ -199,5 +211,5 @@ module.exports = NodeHelper.create({
       }
     });
     return Promise.all(promises);
-  },
+  }
 });
